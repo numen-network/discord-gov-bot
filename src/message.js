@@ -23,7 +23,7 @@ const OUTCOMES = {
   Killed: 'was killed',
 }
 
-const ENACTMENT_FAILURES = {
+export const ENACTMENT_FAILURES = {
   CallUnavailable: 'The chain no longer holds its call',
   PermanentlyOverweight: 'Its call is too heavy to ever run',
 }
@@ -89,7 +89,7 @@ export function clip(text, max) {
 }
 
 /** Text anybody can write on chain appears as typed, the way the explorer renders it. */
-function plainText(text) {
+export function plainText(text) {
   const escaped = escapeMarkdown(text, { heading: true, bulletedList: true, numberedList: true })
   // escapeMarkdown leaves block quotes and subtext alone, and its maskedLink
   // option escapes only the first link on a line
@@ -153,11 +153,9 @@ export function enactmentId(index) {
   return blake2AsHex(u8aConcat(stringToU8a('assembly'), compactAddLength(stringToU8a('enactment')), bnToU8a(index, { bitLength: 32 })))
 }
 
-/** The referendum a scheduler task enacts, among those with a thread. */
-export function enactedReferendum(threads, task) {
-  return Object.keys(threads)
-    .map(Number)
-    .find((index) => enactmentId(index) === task)
+/** The referendum a scheduler task enacts, among the first `count` ever submitted. */
+export function enactedReferendum(count, task) {
+  for (let index = 0; index < count; index++) if (enactmentId(index) === task) return index
 }
 
 /** A pallet as the runtime names it, `Treasury` where polkadot-js says `treasury`. */
@@ -190,7 +188,7 @@ export function moment(height, unix) {
 }
 
 /** Dates a message by the block it reports on, since it may go out long after. */
-function stamp(embed, block) {
+export function stamp(embed, block) {
   return {
     ...embed,
     footer: { text: `Block #${block.number.toLocaleString('en-US')}` },
@@ -277,4 +275,23 @@ export function buildEnactment({ index, explorer, block, name, result }) {
     title: `Referendum #${index} ${failure ? 'could not be enacted' : 'was enacted'}`,
     description: failure,
   })
+}
+
+const THREAD_NOTICES = {
+  text: ({ index, text }, { explorer, block }) => buildTextNotice({ index, explorer, block, ...text }),
+  deposit: ({ index, amount, who, name }, { explorer, token, block }) =>
+    buildNotice({ index, explorer, block, title: 'Decision deposit placed', description: `${formatAmount(amount, token)} by ${accountLink(explorer, who, name)}` }),
+  deciding: ({ index, ends }, { explorer, block }) =>
+    buildNotice({ index, explorer, block, title: 'Decision started', description: ends && `Ends around ${moment(ends.height, ends.time)}` }),
+  confirming: ({ index, passes }, { explorer, block }) =>
+    buildNotice({ index, explorer, block, title: 'Confirming', description: passes && `Passes around ${moment(passes.height, passes.time)}, ${CONFIRMATION_CAVEAT}` }),
+  unconfirmed: ({ index, ends }, { explorer, block }) =>
+    buildNotice({ index, explorer, block, title: 'Back to deciding', description: ends && `Decision ends around ${moment(ends.height, ends.time)}` }),
+  ended: ({ index, outcome }, { explorer, block }) => buildOutcome({ index, explorer, block, outcome }),
+  enacted: ({ index, name, result }, { explorer, block }) => buildEnactment({ index, explorer, block, name, result }),
+}
+
+/** The post a fact makes in its referendum's thread, after the one that opened it. */
+export function buildThreadNotice(fact, context) {
+  return THREAD_NOTICES[fact.kind](fact, context)
 }

@@ -1,9 +1,11 @@
+import { Announcer, discordOutbox, telegramOutbox } from './announce.js'
 import { discussionServer } from './api.js'
 import { Chain } from './chain.js'
 import { Discord } from './discord.js'
 import { env } from './env.js'
 import { postBlock, remind } from './gov.js'
 import { Store } from './store.js'
+import { Telegram } from './telegram.js'
 
 const store = new Store(env.stateDb)
 const chain = await Chain.connect(env.rpc)
@@ -18,6 +20,18 @@ chain.onFinalized((height) => {
 discussionServer(store, discord.guild).listen(env.httpPort, '127.0.0.1')
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const outboxes = [discordOutbox(await Discord.connect(env.generalWebhook)), telegramOutbox(new Telegram(env.telegramToken, env.telegramChat))]
+const announcer = await Announcer.start(ctx, outboxes, finalized)
+console.log(`announcing from block ${finalized + 1}`)
+
+async function announce() {
+  while (true) {
+    await announcer.follow(finalized).catch((error) => console.error('announcements failed, trying again', error))
+    await sleep(3000)
+  }
+}
+void announce()
 
 console.log(`reading from block ${store.cursor() + 1} toward ${finalized}`)
 

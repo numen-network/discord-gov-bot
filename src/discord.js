@@ -34,10 +34,10 @@ export function threadClosed(error) {
   return CLOSED_THREAD.includes(error.code)
 }
 
-/** A refused post as an error, with Discord's JSON error code when the body carries one. */
+/** A refused post as an error, with its status and Discord's JSON error code when the body carries one. */
 async function refusal(res) {
   const body = await res.text()
-  return Object.assign(new Error(`webhook refused with ${res.status} ${body}`), { code: errorCode(body) })
+  return Object.assign(new Error(`webhook refused with ${res.status} ${body}`), { status: res.status, code: errorCode(body) })
 }
 
 function errorCode(body) {

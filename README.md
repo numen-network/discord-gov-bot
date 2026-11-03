@@ -1,6 +1,6 @@
 ## How it works
 
-The bot follows the chain's finalized blocks as they come and reads each one in order from genesis. It posts what every referendum event in them means through a Discord webhook. No bot token and no extra permissions are involved, the webhook URL is the only credential.
+The bot follows the chain's finalized blocks as they come and reads each one in order from genesis. It posts what every referendum event in them means through a Discord webhook.
 
 A submission opens the referendum's thread. The post carries a `thread_name`, which makes Discord create a forum post. It shows the referendum as it stood at the end of the block it was submitted in, with its title, description, track, proposer and what it spends. Instalments show as a single total, with the schedule a click away on the explorer. The title and description are whatever the proposer wrote, so they are clipped to Discord's limits and shown with markdown escaped.
 
@@ -12,22 +12,46 @@ While a referendum runs, the bot also posts in its thread when 7, 3 and 1 days a
 
 `DB_PATH`, a SQLite database, holds how far the bot has read, down to the event within a block. It also keeps every thread ID and the reminders already sent, so a restart picks up where it left off. The bot moves past an event only once Discord has taken its post, so a crash at the wrong moment can repeat that one post but never drop one. A post that fails goes out again 5 seconds later. A post Discord turns down for good, because a moderator deleted or locked its thread, is dropped rather than holding up the rest.
 
+## Events
+
+Each post lands in the referendum's thread under the title below.
+
+| trigger                                 | post                                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------- |
+| `Referenda.Submitted`                   | opens the thread as `Referendum #<index>`                                    |
+| `Referenda.MetadataSet`                 | `Text updated`                                                               |
+| `Referenda.MetadataCleared`             | `Text removed`                                                               |
+| `Referenda.DecisionDepositPlaced`       | `Decision deposit placed`                                                    |
+| `Referenda.DecisionStarted`             | `Decision started`                                                           |
+| `Referenda.ConfirmStarted`              | `Confirming`                                                                 |
+| `Referenda.ConfirmAborted`              | `Back to deciding`                                                           |
+| `Referenda.Confirmed`                   | `Referendum #<index> was approved`                                           |
+| `Referenda.Rejected`                    | `Referendum #<index> was rejected`                                           |
+| `Referenda.TimedOut`                    | `Referendum #<index> timed out`                                              |
+| `Referenda.Cancelled`                   | `Referendum #<index> was cancelled`                                          |
+| `Referenda.Killed`                      | `Referendum #<index> was killed`                                             |
+| `Scheduler.Dispatched` with Ok          | `Referendum #<index> was enacted`                                            |
+| `Scheduler.Dispatched` with Err         | `Referendum #<index> could not be enacted`                                   |
+| `Scheduler.CallUnavailable`             | `Referendum #<index> could not be enacted`                                   |
+| `Scheduler.PermanentlyOverweight`       | `Referendum #<index> could not be enacted`                                   |
+| 7, 3 and 1 days before a countdown ends | `Times out in <n> days`, `Decision ends in <n> days` or `Passes in <n> days` |
+
 ## API
 
 The bot answers which thread discusses a referendum, so the explorer and any wallet can link to it. It listens on `127.0.0.1` at `HTTP_PORT`.
 
-| network | base URL |
-| ------- | -------- |
-| mainnet | `https://discussions.numen-network.org` |
+| network | base URL                                        |
+| ------- | ----------------------------------------------- |
+| mainnet | `https://discussions.numen-network.org`         |
 | testnet | `https://testnet.discussions.numen-network.org` |
 
 `GET /discussions/<index>` returns `{"url":"https://discord.com/channels/<server>/<thread>"}`.
 
-| status | meaning | cache |
-| ------ | ------- | ----- |
-| 200 | the referendum's thread | one day |
-| 404 | no thread yet | none |
-| 400 | the index isn't a non-negative integer | none |
+| status | meaning                                | cache   |
+| ------ | -------------------------------------- | ------- |
+| 200    | the referendum's thread                | one day |
+| 404    | no thread yet                          | none    |
+| 400    | the index isn't a non-negative integer | none    |
 
 Every answer carries `Access-Control-Allow-Origin: *`, so a web page can call it straight from the browser. A thread's URL never changes once it opens. The server ID comes from the webhook itself. Check the URL is a Discord thread before turning it into a link.
 
@@ -35,13 +59,16 @@ Every answer carries `Access-Control-Allow-Origin: *`, so a web page can call it
 
 - Node 24.4+ and pnpm
 - An archive node, for state at every block since genesis
-- A Discord server where you can add a forum channel and a webhook
+- A Discord server where you can add a forum channel and webhooks
+- A Telegram bot that can post in the chat it announces to
 
 ## Run
 
 1. Create a channel of type Forum in the Discord server and leave tags optional, or the bot can't open threads.
 2. Add a webhook to that channel under channel settings, Integrations, Webhooks, and copy its URL.
-3. Copy `.env.example` to `.env` and fill in the webhook URL.
+3. Add another webhook to the general channel the same way.
+4. Create a Telegram bot with BotFather and add it to the group, or to the channel as an admin who can post. The chat ID is the `chat.id` that `getUpdates` shows once the chat has a new message. A public channel also takes `@channelname`.
+5. Copy `.env.example` to `.env` and fill in both webhook URLs, the bot token and the chat ID.
 
 ```bash
 pnpm install

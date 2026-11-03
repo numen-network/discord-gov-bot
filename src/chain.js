@@ -118,6 +118,16 @@ export async function ongoingAt(api, index) {
   return info.isOngoing ? info.asOngoing.toPrimitive() : null
 }
 
+/** Every referendum still running at a block. */
+export async function ongoingIndexes(api) {
+  const entries = await api.query.referenda.referendumInfoFor.entries()
+  return entries.filter(([, info]) => info.unwrap().isOngoing).map(([key]) => key.args[0].toNumber())
+}
+
+export async function referendumCount(api) {
+  return (await api.query.referenda.referendumCount()).toNumber()
+}
+
 export function undecidingTimeout(api) {
   return api.consts.referenda.undecidingTimeout.toNumber()
 }

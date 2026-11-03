@@ -407,12 +407,10 @@ test('enactmentId matches the tasks that enacted referenda 0 and 1 on mainnet', 
 })
 
 test('enactedReferendum finds the referendum behind a task', () => {
-  const threads = { 0: { id: '100' }, 1: { id: '101' } }
-  assert.equal(enactedReferendum(threads, enactmentId(1)), 1)
+  assert.equal(enactedReferendum(2, enactmentId(1)), 1)
 })
 
 test('enactedReferendum finds nothing behind an alarm or another task', () => {
-  const threads = { 0: { id: '100' } }
-  assert.equal(enactedReferendum(threads, undefined), undefined)
-  assert.equal(enactedReferendum(threads, enactmentId(7)), undefined)
+  assert.equal(enactedReferendum(1, undefined), undefined)
+  assert.equal(enactedReferendum(1, enactmentId(7)), undefined)
 })

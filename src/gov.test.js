@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Chain } from './chain.js'
 import { Discord } from './discord.js'
-import { pendingEvents, postBlock, remind } from './gov.js'
+import { pendingEvents } from './facts.js'
+import { postBlock, remind } from './gov.js'
 import { enactmentId } from './message.js'
 
 const UNIT = 10n ** 18n
@@ -74,6 +75,7 @@ function chainAt(events, identities) {
       referenda: {
         referendumInfoFor: async () => ongoingInfo(ONGOING),
         metadataOf: async () => some(hex(TEXT_HASH)),
+        referendumCount: async () => num(3),
       },
       preimage: {
         requestStatusFor: async () => some({ isUnrequested: true, asUnrequested: { len: num(TEXT.length) } }),
